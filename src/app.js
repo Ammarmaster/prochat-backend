@@ -12,7 +12,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // ✅ Enable CORS with credentials
 app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173', // Frontend URL
+    origin: process.env.CLIENT_URL || 'https://prochat-frontend-six.vercel.app', // Frontend URL
     credentials: true, // Allow cookies across origins
 }));
 
