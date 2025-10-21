@@ -1,3 +1,4 @@
+// src/app.js
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
@@ -8,12 +9,16 @@ const authRoutes = require('./routes/auth.routes.js');
 dotenv.config();
 
 const app = express();
-app.use(express.urlencoded({ extended: true }));
 
-// ✅ Enable CORS with credentials
+// ✅ Parse request bodies and cookies
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(cookieParser());
+
+// ✅ CORS configuration (for cookies + cross-origin JWT)
 const allowedOrigins = [
-  'https://prochat-frontend-six.vercel.app', // ✅ deployed frontend
-  'http://localhost:5173',                   // ✅ local dev frontend
+  'https://prochat-frontend-six.vercel.app', // Deployed frontend
+  'http://localhost:5173',                   // Local dev frontend
 ];
 
 app.use(
@@ -22,34 +27,31 @@ app.use(
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.warn('❌ CORS blocked for origin:', origin);
         callback(new Error('Not allowed by CORS'));
       }
     },
-    credentials: true, // Allow cookies & JWTs
+    credentials: true, // Allow cookies
   })
 );
 
-// ✅ Parse incoming JSON and cookies
-app.use(express.json());
-app.use(cookieParser());
-
-// ✅ Health check route
+// ✅ Health check
 app.get('/', (req, res) => {
-    res.send('Server is up and running!');
+  res.send('🚀 ProChat API is running successfully!');
 });
 
-// ✅ Routes
+// ✅ Auth routes
 app.use('/api/auth', authRoutes);
 
-// ❌ 404 handler
+// ❌ 404 Handler
 app.use((req, res) => {
-    res.status(404).json({ message: 'Route not found' });
+  res.status(404).json({ message: 'Route not found' });
 });
 
 // ⚠️ Global error handler
 app.use((err, req, res, next) => {
-    console.error('Unhandled error:', err);
-    res.status(500).json({ message: 'Internal Server Error' });
+  console.error('🔥 Unhandled Error:', err.message);
+  res.status(500).json({ message: 'Internal Server Error' });
 });
 
 module.exports = app;

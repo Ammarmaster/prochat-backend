@@ -6,7 +6,6 @@ const jwt = require('jsonwebtoken');
 // ===============================
 // ✅ Register User
 // ===============================
-// In your auth.controller.js - registerUser function
 async function registerUser(req, res) {
   try {
     const { name, email, password, userId } = req.body;
@@ -20,11 +19,15 @@ async function registerUser(req, res) {
       return res.status(400).json({ message: 'Email already in use' });
     }
 
-    // Generate userId if not provided
-    const generatedUserId = userId || 
-      name.toLowerCase().replace(/\s+/g, '_') + '_' + Math.floor(Math.random() * 1000);
+    const generatedUserId =
+      userId ||
+      name.toLowerCase().replace(/\s+/g, '_') +
+        '_' +
+        Math.floor(Math.random() * 1000);
 
-    const isUserIdExist = await userModel.findOne({ userId: generatedUserId });
+    const isUserIdExist = await userModel.findOne({
+      userId: generatedUserId.toLowerCase(),
+    });
     if (isUserIdExist) {
       return res.status(400).json({ message: 'User ID already taken' });
     }
@@ -35,10 +38,13 @@ async function registerUser(req, res) {
       name,
       email,
       password: hashedPassword,
-      userId: generatedUserId.toLowerCase(), // Ensure lowercase
+      userId: generatedUserId.toLowerCase(),
     });
 
-    // ... rest of your registration code
+    res.status(201).json({
+      message: 'User registered successfully',
+      user: { id: user._id, name: user.name, email: user.email, userId: user.userId },
+    });
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -62,14 +68,15 @@ async function LoginUser(req, res) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.jwtsecret, {
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: '7d',
     });
 
+    // ✅ Set cookie for cross-domain (Vercel + Render)
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Lax',
+      secure: true, // Render uses HTTPS
+      sameSite: 'None', // allow cookies from Vercel
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -94,8 +101,8 @@ async function LoginUser(req, res) {
 function LogoutUser(req, res) {
   res.clearCookie('token', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Lax',
+    secure: true,
+    sameSite: 'None',
   });
   res.status(200).json({ message: 'Logout successful' });
 }
