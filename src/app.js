@@ -11,10 +11,23 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 
 // ✅ Enable CORS with credentials
-app.use(cors({
-    origin: process.env.CLIENT_URL || 'https://prochat-frontend-six.vercel.app', // Frontend URL
-    credentials: true, // Allow cookies across origins
-}));
+const allowedOrigins = [
+  'https://prochat-frontend-six.vercel.app', // ✅ deployed frontend
+  'http://localhost:5173',                   // ✅ local dev frontend
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true, // Allow cookies & JWTs
+  })
+);
 
 // ✅ Parse incoming JSON and cookies
 app.use(express.json());

@@ -7,17 +7,21 @@ const authMiddleware = require("../middleware/auth.middleware.js");
 
 // -------------------- AUTH ROUTES --------------------
 
-// Register, Login, Logout
+// Register
 router.post("/user/register", authController.registerUser);
+
+// Login (make sure controller sets cookie with SameSite=None, Secure)
 router.post("/user/login", authController.LoginUser);
+
+// Logout (clears cookie)
 router.post("/user/logout", authController.LogoutUser);
 
-// ✅ Check if user is authenticated (fixes redirect issue)
+// ✅ Auth check (used by frontend to verify if logged in)
 router.get("/user", authMiddleware, async (req, res) => {
   try {
     const user = await userModel.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ error: "User not found" });
-    res.json(user);
+    res.status(200).json({ user });
   } catch (err) {
     console.error("Auth check error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -25,8 +29,6 @@ router.get("/user", authMiddleware, async (req, res) => {
 });
 
 // -------------------- SEARCH ROUTE --------------------
-
-// Search users by userId or name
 router.get("/search", authMiddleware, async (req, res) => {
   const query = (req.query.query || "").trim();
   if (!query) return res.status(400).json({ error: "Query is required" });
@@ -41,7 +43,7 @@ router.get("/search", authMiddleware, async (req, res) => {
       })
       .select("-password");
 
-    res.json({ users });
+    res.status(200).json({ users });
   } catch (err) {
     console.error("Search error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -50,29 +52,31 @@ router.get("/search", authMiddleware, async (req, res) => {
 
 // -------------------- FRIEND ROUTES --------------------
 
-// Add friend by userId
+// Add friend
 router.post("/user/add-friend", authMiddleware, async (req, res) => {
   try {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: "User ID is required" });
 
     const currentUser = await userModel.findById(req.user.id);
-    const friendUser = await userModel.findOne({ userId: userId.toLowerCase().trim() });
+    const friendUser = await userModel.findOne({
+      userId: userId.toLowerCase().trim(),
+    });
     if (!friendUser) return res.status(404).json({ error: "User not found" });
 
-    if (currentUser._id.toString() === friendUser._id.toString()) {
+    if (currentUser._id.equals(friendUser._id)) {
       return res.status(400).json({ error: "You can't add yourself" });
     }
 
-    const isAlreadyFriend = currentUser.friends.some(
+    const alreadyFriend = currentUser.friends.some(
       (fId) => fId.toString() === friendUser._id.toString()
     );
-    if (isAlreadyFriend) return res.status(400).json({ error: "Already friends" });
+    if (alreadyFriend) return res.status(400).json({ error: "Already friends" });
 
     currentUser.friends.push(friendUser._id);
     await currentUser.save();
 
-    res.json({
+    res.status(200).json({
       message: "Friend added successfully",
       friend: {
         _id: friendUser._id,
@@ -87,14 +91,16 @@ router.post("/user/add-friend", authMiddleware, async (req, res) => {
   }
 });
 
-// Remove friend by userId
+// Remove friend
 router.post("/user/remove-friend", authMiddleware, async (req, res) => {
   try {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: "User ID is required" });
 
     const currentUser = await userModel.findById(req.user.id);
-    const friendUser = await userModel.findOne({ userId: userId.toLowerCase().trim() });
+    const friendUser = await userModel.findOne({
+      userId: userId.toLowerCase().trim(),
+    });
     if (!friendUser) return res.status(404).json({ error: "User not found" });
 
     currentUser.friends = currentUser.friends.filter(
@@ -102,14 +108,14 @@ router.post("/user/remove-friend", authMiddleware, async (req, res) => {
     );
     await currentUser.save();
 
-    res.json({ message: "Friend removed successfully" });
+    res.status(200).json({ message: "Friend removed successfully" });
   } catch (err) {
     console.error("Remove friend error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// Get friends list
+// Get friends
 router.get("/user/friends", authMiddleware, async (req, res) => {
   try {
     const user = await userModel
@@ -117,7 +123,7 @@ router.get("/user/friends", authMiddleware, async (req, res) => {
       .populate("friends", "name userId email");
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    res.json({ friends: user.friends });
+    res.status(200).json({ friends: user.friends });
   } catch (err) {
     console.error("Fetch friends error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -126,7 +132,7 @@ router.get("/user/friends", authMiddleware, async (req, res) => {
 
 // -------------------- MESSAGE ROUTES --------------------
 
-// Fetch conversation with a friend
+// Get messages with a friend
 router.get("/messages/conversation/:friendId", authMiddleware, async (req, res) => {
   try {
     const { id: userId } = req.user;
@@ -141,14 +147,14 @@ router.get("/messages/conversation/:friendId", authMiddleware, async (req, res) 
       })
       .sort({ createdAt: 1 });
 
-    res.json({ messages });
+    res.status(200).json({ messages });
   } catch (err) {
     console.error("Conversation error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// Send a message
+// Send message
 router.post("/messages/send", authMiddleware, async (req, res) => {
   try {
     const senderId = req.user.id;
@@ -164,7 +170,7 @@ router.post("/messages/send", authMiddleware, async (req, res) => {
       text: text.trim(),
     });
 
-    res.json({ message: newMessage });
+    res.status(200).json({ message: newMessage });
   } catch (err) {
     console.error("Send message error:", err);
     res.status(500).json({ error: "Internal server error" });
