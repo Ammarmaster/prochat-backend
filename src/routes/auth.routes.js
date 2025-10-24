@@ -66,6 +66,33 @@ router.get('/messages/conversation/:friendId', authMiddleware, async (req, res) 
   }
 });
 
+// ===============================
+// 🔹 SEARCH USERS
+// ===============================
+router.get('/search', authMiddleware, async (req, res) => {
+  try {
+    const query = req.query.query?.trim();
+    if (!query) return res.status(400).json({ users: [] });
+
+    // Find users whose name or userId matches (case-insensitive)
+    const users = await userModel.find({
+      $or: [
+        { name: { $regex: query, $options: 'i' } },
+        { userId: { $regex: query, $options: 'i' } },
+      ],
+    }).select('-password');
+
+    // Exclude the current user
+    const filtered = users.filter((u) => u._id.toString() !== req.user.id);
+
+    res.status(200).json({ users: filtered });
+  } catch (err) {
+    console.error('Search users error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 router.post('/messages/send', authMiddleware, async (req, res) => {
   try {
     const senderId = req.user.id;
