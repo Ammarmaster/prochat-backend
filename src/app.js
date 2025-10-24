@@ -10,12 +10,6 @@ dotenv.config();
 
 const app = express();
 
-// ✅ Parse request bodies and cookies
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.use(cookieParser());
-
-// ✅ CORS configuration (for cookies + cross-origin JWT)
 const allowedOrigins = [
   'https://prochat-frontend-six.vercel.app', // Deployed frontend
   'http://localhost:5173',                   // Local dev frontend
@@ -34,6 +28,12 @@ app.use(
     credentials: true, // Allow cookies
   })
 );
+// ✅ Parse request bodies and cookies
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(cookieParser());
+
+
 
 // ✅ Health check
 app.get('/', (req, res) => {
