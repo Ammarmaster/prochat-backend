@@ -40,6 +40,17 @@ async function registerUser(req, res) {
       password: hashedPassword,
       userId: generatedUserId.toLowerCase(),
     });
+    const token = jwt.sign({id:user._id,email:user.email,userId:user.userId},process.env.JWT_SECRET,{
+      expiresIn:'7d'
+    });
+
+    // ✅ Set cookie for cross-domain (Vercel + Render)
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: true, // Render uses HTTPS
+      sameSite: 'None', // allow cookies from Vercel
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
     res.status(201).json({
       message: 'User registered successfully',

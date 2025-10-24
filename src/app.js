@@ -17,7 +17,7 @@ app.use(cookieParser());
 
 // ✅ CORS configuration (for cookies + cross-origin JWT)
 const allowedOrigins = [
-  'https://prochat-frontend-six.vercel.app', // Deployed frontend
+  // 'https://prochat-frontend-six.vercel.app', // Deployed frontend
   'http://localhost:5173',                   // Local dev frontend
 ];
 
