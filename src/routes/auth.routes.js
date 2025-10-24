@@ -28,6 +28,78 @@ router.get('/user', authMiddleware, async (req, res) => {
 // ===============================
 // 🔹 FRIEND ROUTES
 // ===============================
+
+// ➕ ADD FRIEND ROUTE
+router.post('/user/add-friend', authMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.body; // The userId of the friend to add
+    const currentUserId = req.user.id; // From auth middleware
+
+    // 🛑 Validation: Check if userId is provided
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // 🔍 Find the friend user by userId
+    const friendToAdd = await userModel.findOne({ userId });
+    
+    if (!friendToAdd) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // 🛑 Check if user is trying to add themselves
+    if (friendToAdd._id.toString() === currentUserId) {
+      return res.status(400).json({ error: 'You cannot add yourself as a friend' });
+    }
+
+    // 🔍 Find the current user
+    const currentUser = await userModel.findById(currentUserId);
+    
+    if (!currentUser) {
+      return res.status(404).json({ error: 'Current user not found' });
+    }
+
+    // 🛑 Check if already friends
+    const isAlreadyFriend = currentUser.friends.includes(friendToAdd._id);
+    if (isAlreadyFriend) {
+      return res.status(400).json({ error: 'User is already in your friends list' });
+    }
+
+    // ➕ Add friend to current user's friends list
+    currentUser.friends.push(friendToAdd._id);
+    await currentUser.save();
+
+    // ✅ Success response
+    res.status(200).json({
+      success: true,
+      message: 'Friend added successfully',
+      friend: {
+        _id: friendToAdd._id,
+        name: friendToAdd.name,
+        userId: friendToAdd.userId,
+        email: friendToAdd.email
+      }
+    });
+
+  } catch (err) {
+    console.error('Add friend error:', err);
+    
+    // Handle duplicate key errors
+    if (err.code === 11000) {
+      return res.status(400).json({ error: 'Friend already exists in your list' });
+    }
+
+    // Handle validation errors
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ error: 'Invalid data provided' });
+    }
+
+    // General server error
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 👥 GET FRIENDS ROUTE
 router.get('/user/friends', authMiddleware, async (req, res) => {
   try {
     const user = await userModel
@@ -92,7 +164,7 @@ router.get('/search', authMiddleware, async (req, res) => {
   }
 });
 
-
+// ✉️ SEND MESSAGE ROUTE
 router.post('/messages/send', authMiddleware, async (req, res) => {
   try {
     const senderId = req.user.id;
