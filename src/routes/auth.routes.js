@@ -91,6 +91,42 @@ router.get("/user/friends", authMiddleware, async (req, res) => {
   }
 });
 
+// ❌ REMOVE FRIEND (Mutual Remove)
+router.post("/user/remove-friend", authMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const currentUserId = req.user.id;
+
+    if (!userId)
+      return res.status(400).json({ error: "User ID is required" });
+
+    const currentUser = await userModel.findById(currentUserId);
+    const friendToRemove = await userModel.findOne({ userId });
+
+    if (!friendToRemove)
+      return res.status(404).json({ error: "User not found" });
+
+    // ✅ Remove each other mutually
+    currentUser.friends = currentUser.friends.filter(
+      (id) => id.toString() !== friendToRemove._id.toString()
+    );
+    friendToRemove.friends = friendToRemove.friends.filter(
+      (id) => id.toString() !== currentUser._id.toString()
+    );
+
+    await currentUser.save();
+    await friendToRemove.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Friend removed successfully",
+    });
+  } catch (err) {
+    console.error("Remove friend error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // ===============================
 // 🔹 SEARCH USERS
 // ===============================
