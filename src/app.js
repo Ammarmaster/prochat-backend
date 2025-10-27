@@ -179,6 +179,10 @@ app.use((err, req, res, next) => {
   console.error('🔥 Unhandled Error:', err.message);
   res.status(500).json({ message: 'Internal Server Error' });
 });
+app.all('*', (req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
+
 
 // Export both app and server
 module.exports = { app, server };
