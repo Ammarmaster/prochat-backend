@@ -204,4 +204,9 @@ router.post("/messages/send", authMiddleware, async (req, res) => {
   }
 });
 
+// Catch-all for client-side routes
+router.get('*', (req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
 module.exports = router;
