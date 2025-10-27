@@ -1,4 +1,4 @@
-// routes/auth.route.js
+// routes/auth.routes.js
 const express = require("express");
 const router = express.Router();
 const userModel = require("../models/user.model.js");
@@ -29,13 +29,14 @@ router.get("/user", authMiddleware, async (req, res) => {
 // 🔹 FRIEND ROUTES
 // ===============================
 
-// ➕ ADD FRIEND (mutual add)
+// ➕ ADD FRIEND (mutual add + live update)
 router.post("/user/add-friend", authMiddleware, async (req, res) => {
   try {
     const { userId } = req.body;
     const currentUserId = req.user.id;
 
-    if (!userId) return res.status(400).json({ error: "User ID is required" });
+    if (!userId)
+      return res.status(400).json({ error: "User ID is required" });
 
     const currentUser = await userModel.findById(currentUserId);
     const friendToAdd = await userModel.findOne({ userId });
@@ -59,15 +60,31 @@ router.post("/user/add-friend", authMiddleware, async (req, res) => {
     await currentUser.save();
     await friendToAdd.save();
 
-    // ✅ Return updated friend data for frontend
-    const newFriend = await userModel
+    // ✅ Emit live friend list update to both users (via Socket.IO)
+    const io = req.app.get("io");
+    const newFriendData = await userModel
       .findById(friendToAdd._id)
       .select("name userId email");
+
+    io.emit("friendAdded", {
+      userId: currentUserId,
+      friend: newFriendData,
+    });
+
+    io.emit("friendAdded", {
+      userId: friendToAdd._id.toString(),
+      friend: {
+        _id: currentUser._id,
+        name: currentUser.name,
+        userId: currentUser.userId,
+        email: currentUser.email,
+      },
+    });
 
     res.status(200).json({
       success: true,
       message: "Friend added successfully",
-      friend: newFriend,
+      friend: newFriendData,
     });
   } catch (err) {
     console.error("Add friend error:", err);
@@ -91,7 +108,7 @@ router.get("/user/friends", authMiddleware, async (req, res) => {
   }
 });
 
-// ❌ REMOVE FRIEND (Mutual Remove)
+// ❌ REMOVE FRIEND (Mutual Remove + Live Update)
 router.post("/user/remove-friend", authMiddleware, async (req, res) => {
   try {
     const { userId } = req.body;
@@ -116,6 +133,16 @@ router.post("/user/remove-friend", authMiddleware, async (req, res) => {
 
     await currentUser.save();
     await friendToRemove.save();
+
+    const io = req.app.get("io");
+    io.emit("friendRemoved", {
+      userId: currentUserId,
+      friendId: friendToRemove._id.toString(),
+    });
+    io.emit("friendRemoved", {
+      userId: friendToRemove._id.toString(),
+      friendId: currentUser._id.toString(),
+    });
 
     res.status(200).json({
       success: true,
@@ -180,7 +207,7 @@ router.get(
   }
 );
 
-// ✉️ SEND MESSAGE
+// ✉️ SEND MESSAGE + realtime emit
 router.post("/messages/send", authMiddleware, async (req, res) => {
   try {
     const senderId = req.user.id;
@@ -197,13 +224,23 @@ router.post("/messages/send", authMiddleware, async (req, res) => {
       text: text.trim(),
     });
 
-    res.status(200).json({ message: newMessage });
+    const populatedMessage = await messageModel
+      .findById(newMessage._id)
+      .populate("sender", "name userId")
+      .populate("recipient", "name userId");
+
+    // ✅ Emit message in realtime
+    const io = req.app.get("io");
+    io.to(recipientId).emit("newMessage", populatedMessage);
+
+    res.status(200).json({
+      message: populatedMessage,
+      success: true,
+    });
   } catch (err) {
     console.error("Send message error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-
 
 module.exports = router;
